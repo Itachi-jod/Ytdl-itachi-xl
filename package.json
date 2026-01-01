@@ -1,9 +1,10 @@
 {
-  "name": "itachi-downloader-api",
+  "name": "vidssave-downloader-itachi",
   "version": "1.0.0",
   "type": "commonjs",
   "main": "index.js",
   "dependencies": {
-    "axios": "^1.6.8"
+    "axios": "^1.6.8",
+    "querystring": "^0.2.1"
   }
 }
