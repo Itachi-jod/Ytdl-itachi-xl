@@ -32,39 +32,44 @@ module.exports = async (req, res) => {
     );
 
     const data = response.data;
+    const urls = [];
 
-    let downloadUrl = null;
+    // helper to push safely
+    const pushUrl = (u) => {
+      if (u && typeof u === "string" && u.startsWith("http")) {
+        urls.push(u);
+      }
+    };
 
-    // 🔹 Case 1: links[]
-    if (data?.data?.links?.length) {
-      const v1080 = data.data.links.find(v =>
-        String(v.resolution || v.quality).includes("1080")
-      );
-      downloadUrl = v1080?.download_url || v1080?.url;
+    // 🔍 Scan ALL known structures
+    if (data?.data?.links) {
+      data.data.links.forEach(v => {
+        pushUrl(v.url);
+        pushUrl(v.download_url);
+      });
     }
 
-    // 🔹 Case 2: videos[]
-    if (!downloadUrl && data?.data?.videos?.length) {
-      const v1080 = data.data.videos.find(v =>
-        String(v.quality).includes("1080")
-      );
-      downloadUrl = v1080?.url;
+    if (data?.data?.videos) {
+      data.data.videos.forEach(v => {
+        pushUrl(v.url);
+      });
     }
 
-    // 🔹 Case 3: formats[]
-    if (!downloadUrl && data?.data?.formats?.length) {
-      const v1080 = data.data.formats.find(v =>
-        String(v.resolution).includes("1080")
-      );
-      downloadUrl = v1080?.download_url || v1080?.url;
+    if (data?.data?.formats) {
+      data.data.formats.forEach(v => {
+        pushUrl(v.url);
+        pushUrl(v.download_url);
+      });
     }
 
-    // 🔹 Case 4: direct video
-    if (!downloadUrl && data?.data?.video?.url) {
-      downloadUrl = data.data.video.url;
+    if (data?.data?.video?.url) {
+      pushUrl(data.data.video.url);
     }
 
-    if (!downloadUrl) {
+    // remove duplicates
+    const uniqueUrls = [...new Set(urls)];
+
+    if (uniqueUrls.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No media found"
@@ -79,12 +84,13 @@ module.exports = async (req, res) => {
           success: true,
           author: "ItachiXD",
           platform: "YouTube",
-          download_url: downloadUrl
+          download_urls: uniqueUrls
         },
         null,
-        2 // ✅ PRETTY PRINT
+        2 // ✅ pretty print
       )
     );
+
   } catch (err) {
     return res.status(500).json({
       success: false,
