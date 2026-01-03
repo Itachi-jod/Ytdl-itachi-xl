@@ -1,70 +1,75 @@
+// Author: ItachiXD
+
 const axios = require("axios");
-const FormData = require("form-data");
 
 module.exports = async (req, res) => {
   try {
-    const { url } = req.query;
+    if (req.method !== "GET") {
+      return res.status(405).json({
+        success: false,
+        author: "ItachiXD",
+        message: "Only GET method is allowed"
+      });
+    }
 
-    if (!url) {
+    const videoUrl = req.query.url;
+
+    if (!videoUrl) {
       return res.status(400).json({
         success: false,
+        author: "ItachiXD",
         message: "Missing url parameter"
       });
     }
 
-    const form = new FormData();
-    form.append("url", url);
-
+    // Call the POST-only API internally
     const response = await axios.post(
       "https://tools.xrespond.com/api/youtube/video/downloader",
-      form,
+      { url: videoUrl },
       {
         headers: {
-          ...form.getHeaders(),
+          "Content-Type": "application/json",
           "Accept": "application/json",
           "Origin": "https://downsocial.io",
-          "Referer": "https://downsocial.io/",
-          "User-Agent":
-            "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36"
-        },
-        timeout: 30000
+          "Referer": "https://downsocial.io/"
+        }
       }
     );
 
-    const links = response?.data?.data?.data?.links;
+    const data = response.data;
 
-    if (!Array.isArray(links)) {
-      return res.status(404).json({
+    if (!data || !data.formats) {
+      return res.status(500).json({
         success: false,
-        message: "No media links found"
+        author: "ItachiXD",
+        message: "Failed to fetch video formats"
       });
     }
 
-    // 🎯 ONLY 1080p
-    const video1080 = links.find(
-      v => v.type === "video" && String(v.resolution).includes("1080")
+    // Pick ONLY 1080p
+    const format1080 = data.formats.find(
+      f => f.quality === "1080p" && f.url
     );
 
-    if (!video1080) {
+    if (!format1080) {
       return res.status(404).json({
         success: false,
-        message: "1080p link not found"
+        author: "ItachiXD",
+        message: "1080p format not available"
       });
     }
-
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
 
     return res.status(200).json({
       success: true,
       author: "ItachiXD",
-      platform: "Youtube",
-      download_url: video1080.download_url
+      platform: "YouTube",
+      download_url: format1080.url
     });
 
   } catch (err) {
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch media",
+      author: "ItachiXD",
       error: err.message
     });
   }
