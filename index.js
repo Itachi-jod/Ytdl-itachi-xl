@@ -31,7 +31,6 @@ module.exports = async (req, res) => {
       }
     );
 
-    //  CORRECT PATH (FROM YOUR SCREENSHOT)
     const links = response?.data?.data?.data?.links;
 
     if (!Array.isArray(links)) {
@@ -41,19 +40,20 @@ module.exports = async (req, res) => {
       });
     }
 
-    //  Pick ONLY 1080p
+    // 🎯 ONLY 1080p
     const video1080 = links.find(
       v => v.type === "video" && String(v.resolution).includes("1080")
     );
 
-    if (!video1080 || !video1080.download_url) {
+    if (!video1080) {
       return res.status(404).json({
         success: false,
-        message: "1080p download link not found"
+        message: "1080p link not found"
       });
     }
 
-    //  FINAL RESPONSE
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+
     return res.status(200).json({
       success: true,
       author: "ItachiXD",
