@@ -2,13 +2,6 @@ const axios = require("axios");
 const FormData = require("form-data");
 
 module.exports = async (req, res) => {
-  if (req.method !== "GET") {
-    return res.status(405).json({
-      success: false,
-      message: "Only GET method allowed"
-    });
-  }
-
   const videoUrl = req.query.url;
 
   if (!videoUrl) {
@@ -33,28 +26,48 @@ module.exports = async (req, res) => {
           "Origin": "https://downsocial.io",
           "Referer": "https://downsocial.io/",
           "Accept": "application/json"
-        }
+        },
+        timeout: 20000
       }
     );
 
     const data = response.data;
 
-    if (!data?.data?.links) {
+    let downloadUrl = null;
+
+    // 🔹 Case 1: links[]
+    if (data?.data?.links?.length) {
+      const v1080 = data.data.links.find(v =>
+        String(v.resolution || v.quality).includes("1080")
+      );
+      downloadUrl = v1080?.download_url || v1080?.url;
+    }
+
+    // 🔹 Case 2: videos[]
+    if (!downloadUrl && data?.data?.videos?.length) {
+      const v1080 = data.data.videos.find(v =>
+        String(v.quality).includes("1080")
+      );
+      downloadUrl = v1080?.url;
+    }
+
+    // 🔹 Case 3: formats[]
+    if (!downloadUrl && data?.data?.formats?.length) {
+      const v1080 = data.data.formats.find(v =>
+        String(v.resolution).includes("1080")
+      );
+      downloadUrl = v1080?.download_url || v1080?.url;
+    }
+
+    // 🔹 Case 4: direct video
+    if (!downloadUrl && data?.data?.video?.url) {
+      downloadUrl = data.data.video.url;
+    }
+
+    if (!downloadUrl) {
       return res.status(404).json({
         success: false,
         message: "No media found"
-      });
-    }
-
-    // Pick ONLY 1080p
-    const video1080 = data.data.links.find(
-      v => v.type === "video" && v.resolution === "1080p"
-    );
-
-    if (!video1080) {
-      return res.status(404).json({
-        success: false,
-        message: "1080p video not available"
       });
     }
 
@@ -66,12 +79,10 @@ module.exports = async (req, res) => {
           success: true,
           author: "ItachiXD",
           platform: "YouTube",
-          title: data.data.title,
-          thumbnail: data.data.thumbnail,
-          download_url: video1080.download_url
+          download_url: downloadUrl
         },
         null,
-        2 // ✅ pretty print
+        2 // ✅ PRETTY PRINT
       )
     );
   } catch (err) {
